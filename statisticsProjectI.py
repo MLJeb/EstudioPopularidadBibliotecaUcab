@@ -5,14 +5,16 @@ import seaborn; seaborn.set()
 import openpyxl;
 #data.columns
 #Index(['Libro', 'Titulo del libro', 'Especialidad', 'Opinión del 1 al 6'], dtype='object')
+data = pd.read_csv("BooksProject.csv")
+data.dropna(subset= ['Libro','Opinión del 1 al 6'], inplace=True)
+dataIndexes = ['Libro','Número de Valoraciones','Media','Cuasidesviación','Mediana', 'Moda']
 
-data = pd.read_csv("BooksProject2.csv")
 bookGroupedRates = data.groupby(['Libro'])['Opinión del 1 al 6']
 describeTable = bookGroupedRates.describe().reset_index()
-firstLevelModes = bookGroupedRates.apply(lambda x:x.mode().iloc[0] if(len(x.mode() > 0)) else 0 ).reset_index().rename(columns={'Opinión del 1 al 6': 'Moda'})
+firstLevelModes = bookGroupedRates.apply(lambda x: x.mode().iloc[0]).reset_index().rename(columns={'Opinión del 1 al 6': 'Moda'})
 describeTable = describeTable.merge(firstLevelModes, on='Libro', how='left')
 describeTable.rename(columns={'count': 'Número de Valoraciones','mean':'Media', 'std':'Cuasidesviación','50%': 'Mediana'}, inplace=True)
-describeTable.set_index(['Libro','Número de Valoraciones','Media','Cuasidesviación','Mediana', 'Moda'], inplace = True)
+describeTable.set_index(dataIndexes, inplace = True)
 describeTable.drop(columns = describeTable.columns, inplace = True)
 groupedEspecialtyBooks = data.groupby(['Libro', 'Especialidad']).size()
 #3) book valorations distributions
@@ -52,8 +54,9 @@ bookRatesDistributions['Fi'].fillna(0, inplace = True)
 bookRatesDistributions['Hi'].fillna(0, inplace = True) 
 
 # join the general information
-finalTable = describeTable.join(bookRatesDistributions, how='inner').sort_index(axis = 0)
-finalTable.to_excel("output2.xlsx")  
+finalTable = describeTable.join(bookRatesDistributions, how='inner')
+finalTable.set_index(finalTable.index.reorder_levels([*dataIndexes, 'Opinión del 1 al 6']), inplace = True)
+finalTable.to_excel("output.xlsx")  
 bins = np.arange(1,7)
 # plt.hist(bookARatings,bins)
 # plt.hist(bookBRatings,bins)
