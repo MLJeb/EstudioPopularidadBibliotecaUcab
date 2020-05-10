@@ -6,7 +6,7 @@ import openpyxl;
 #data.columns
 #Index(['Libro', 'Titulo del libro', 'Especialidad', 'Opinión del 1 al 6'], dtype='object')
 
-data = pd.read_csv("BooksProject2.csv")
+data = pd.read_csv("BooksProject.csv")
  
 describeTable = data.groupby(['Libro'])['Opinión del 1 al 6'].describe().reset_index()
 describeTable.rename(columns={'count': 'Número de Valoraciones','mean':'Media', 'std':'Cuasidesviación','50%': 'Mediana'}, inplace=True)
@@ -51,7 +51,7 @@ bookRatesDistributions['Hi'].fillna(0, inplace = True)
 
 # join the general information
 finalTable = describeTable.join(bookRatesDistributions, how='inner').sort_index(axis = 0)
-finalTable.to_excel("output2.xlsx")  
+finalTable.to_excel("output.xlsx")  
 
 bins = np.arange(1,7)
 # plt.hist(bookARatings,bins)
