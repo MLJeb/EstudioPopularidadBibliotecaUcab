@@ -6,11 +6,13 @@ import openpyxl;
 #data.columns
 #Index(['Libro', 'Titulo del libro', 'Especialidad', 'Opinión del 1 al 6'], dtype='object')
 
-data = pd.read_csv("BooksProject.csv")
- 
-describeTable = data.groupby(['Libro'])['Opinión del 1 al 6'].describe().reset_index()
+data = pd.read_csv("BooksProject2.csv")
+bookGroupedRates = data.groupby(['Libro'])['Opinión del 1 al 6']
+describeTable = bookGroupedRates.describe().reset_index()
+firstLevelModes = bookGroupedRates.apply(lambda x:x.mode().iloc[0] if(len(x.mode() > 0)) else 0 ).reset_index().rename(columns={'Opinión del 1 al 6': 'Moda'})
+describeTable = describeTable.merge(firstLevelModes, on='Libro', how='left')
 describeTable.rename(columns={'count': 'Número de Valoraciones','mean':'Media', 'std':'Cuasidesviación','50%': 'Mediana'}, inplace=True)
-describeTable.set_index(['Libro','Número de Valoraciones','Media','Cuasidesviación','Mediana'], inplace = True)
+describeTable.set_index(['Libro','Número de Valoraciones','Media','Cuasidesviación','Mediana', 'Moda'], inplace = True)
 describeTable.drop(columns = describeTable.columns, inplace = True)
 groupedEspecialtyBooks = data.groupby(['Libro', 'Especialidad']).size()
 #3) book valorations distributions
@@ -51,8 +53,7 @@ bookRatesDistributions['Hi'].fillna(0, inplace = True)
 
 # join the general information
 finalTable = describeTable.join(bookRatesDistributions, how='inner').sort_index(axis = 0)
-finalTable.to_excel("output.xlsx")  
-
+finalTable.to_excel("output2.xlsx")  
 bins = np.arange(1,7)
 # plt.hist(bookARatings,bins)
 # plt.hist(bookBRatings,bins)
