@@ -6,10 +6,10 @@ import openpyxl
 from openpyxl import load_workbook
 import os.path
 from collections import Counter
-
+from statsmodels.distributions.empirical_distribution import ECDF
 #data.columns
 #Index(['Libro', 'Titulo del libro', 'Especialidad', 'Opinión del 1 al 6'], dtype='object')
-data = pd.read_csv("bd2.csv")
+data = pd.read_csv("BooksProject.csv")
 data.dropna(subset= ['Especialidad','Libro','Opinión del 1 al 6'], inplace=True)
 dataIndexes = ['Especialidad','Libro','Número de Valoraciones','Media','Cuasidesviación','Mediana', 'Moda']
 nonDispersedData  = data.groupby(['Especialidad','Libro']).filter(lambda x: x['Opinión del 1 al 6'].nunique() <= 1)
@@ -71,11 +71,12 @@ finalTable = describeTable.join(bookRatesDistributions, how='inner')
 finalTable.set_index(finalTable.index.reorder_levels([*dataIndexes, 'Opinión del 1 al 6']), inplace = True)
 finalTable.sort_values(by=['Especialidad','Número de Valoraciones','Opinión del 1 al 6'], inplace = True, ascending = [True,False, True])
 
-path = "./output3.xlsx"
+path = "./output.xlsx"
 writer = pd.ExcelWriter(path, engine = 'openpyxl')
 writer.book = openpyxl.Workbook()
 finalTable.to_excel(writer, sheet_name= "tabla de datos dispersos")  
 if(not nonDispersedData.empty):
+  nonDispersedData = nonDispersedData.groupby(['Especialidad','Libro','Opinión del 1 al 6']).size().to_frame('Número de Valoraciones').sort_values(by=['Especialidad', 'Número de Valoraciones'],ascending = [True,False])
   nonDispersedData.to_excel(writer, sheet_name = "tabla de datos no dispersos") 
 writer.save()
 writer.close()
@@ -83,12 +84,20 @@ writer.close()
 bins = np.arange(0, 6 + 1.5) - 0.5
 i = 0
 for especialty in groupedDataDict:
-  fig, ax = plt.subplots()
+  fig, axs = plt.subplots(1,2)
   labels = [label for label in list(groupedDataDict[especialty].keys()) if label != 'Valoraciones']
-  _ = ax.hist(groupedDataDict[especialty]['Valoraciones'], bins, density = True, label = labels)
-  ax.set_xticks(bins + 0.5)
-  ax.legend(prop={'size': 10})
-  ax.set_title(especialty)
+  _ = axs[0].hist(groupedDataDict[especialty]['Valoraciones'], bins, density = True, label = labels)
+  axs[0].set_xticks(bins + 0.5)
+  j = 0
+  for arr in groupedDataDict[especialty]['Valoraciones']:
+    ecdf = ECDF(arr)
+    x = np.linspace(0, 6)
+    y = ecdf(x)
+    axs[1].step(x,y,label = labels[j])
+    j+=1
+  axs[0].legend(prop={'size': 10})
+  axs[1].legend(prop={'size': 10})
+  fig.suptitle(especialty, fontsize=20)
   plt.figure(i)
   i+=1
 plt.close(0)
