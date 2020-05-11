@@ -6,7 +6,7 @@ import openpyxl;
 #data.columns
 #Index(['Libro', 'Titulo del libro', 'Especialidad', 'Opinión del 1 al 6'], dtype='object')
 data = pd.read_csv("BooksProject.csv")
-data.dropna(subset= ['Libro','Opinión del 1 al 6'], inplace=True)
+data.dropna(subset= ['Especialidad','Libro','Opinión del 1 al 6'], inplace=True)
 dataIndexes = ['Especialidad','Libro','Número de Valoraciones','Media','Cuasidesviación','Mediana', 'Moda']
 
 bookGroupedRates = data.groupby(['Especialidad','Libro'])['Opinión del 1 al 6']
@@ -57,7 +57,7 @@ bookRatesDistributions['Hi'].fillna(0, inplace = True)
 
 # join the general information
 finalTable = describeTable.join(bookRatesDistributions, how='inner')
-finalTable.sort_values(by=['Número de Valoraciones','Opinión del 1 al 6'], inplace = True, ascending = [False, True])
+finalTable.sort_values(by=['Especialidad','Número de Valoraciones','Opinión del 1 al 6'], inplace = True, ascending = [True,False, True])
 finalTable.set_index(finalTable.index.reorder_levels([*dataIndexes, 'Opinión del 1 al 6']), inplace = True)
 finalTable.to_excel("output.xlsx")  
 
