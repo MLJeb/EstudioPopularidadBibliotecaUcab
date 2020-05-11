@@ -2,13 +2,17 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot  as plt
 import seaborn; seaborn.set()
-import openpyxl;
+import openpyxl
+from openpyxl import load_workbook
+import os.path
+
 #data.columns
 #Index(['Libro', 'Titulo del libro', 'Especialidad', 'Opinión del 1 al 6'], dtype='object')
 data = pd.read_csv("BooksProject.csv")
 data.dropna(subset= ['Especialidad','Libro','Opinión del 1 al 6'], inplace=True)
 dataIndexes = ['Especialidad','Libro','Número de Valoraciones','Media','Cuasidesviación','Mediana', 'Moda']
-
+nonDispersedData  = data.groupby(['Especialidad','Libro']).filter(lambda x: x['Opinión del 1 al 6'].nunique() <= 1)
+data = data.groupby(['Especialidad','Libro']).filter(lambda x: x['Opinión del 1 al 6'].nunique() > 1)
 bookGroupedRates = data.groupby(['Especialidad','Libro'])['Opinión del 1 al 6']
 describeTable = bookGroupedRates.describe().reset_index()
 firstLevelModes = bookGroupedRates.apply(lambda x: x.mode().iloc[0]).reset_index().rename(columns={'Opinión del 1 al 6': 'Moda'})
@@ -64,11 +68,18 @@ bookRatesDistributions['Hi'].fillna(0, inplace = True)
 finalTable = describeTable.join(bookRatesDistributions, how='inner')
 finalTable.set_index(finalTable.index.reorder_levels([*dataIndexes, 'Opinión del 1 al 6']), inplace = True)
 finalTable.sort_values(by=['Especialidad','Número de Valoraciones','Opinión del 1 al 6'], inplace = True, ascending = [True,False, True])
-finalTable.to_excel("output.xlsx")  
+
+path = "./output.xlsx"
+writer = pd.ExcelWriter(path, engine = 'openpyxl', mode= 'w')
+writer.book = load_workbook(path) if os.path.isfile(path) else openpyxl.Workbook()
+finalTable.to_excel(writer, sheet_name= "tabla de datos dispersos")  
+if(not nonDispersedData.empty):
+  nonDispersedData.to_excel(writer, sheet_name = "tabla de datos no dispersos") 
+writer.save()
+writer.close()
 
 fisByEspecialty = [[data[data['Libro'] == book]['Opinión del 1 al 6'].values  for book in especialtyBooks[especialty]] for especialty in especialtyBooks]
 labels = [[especialty, especialtyBooks[especialty]] for especialty in especialtyBooks]
-
 # [[data[data['Libro'] == book]['Opinión del 1 al 6'].values
 bins = np.arange(0, 6 + 1.5) - 0.5
 for i in range(len(especialtyBooks)):
