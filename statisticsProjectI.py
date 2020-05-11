@@ -7,21 +7,20 @@ import openpyxl;
 #Index(['Libro', 'Titulo del libro', 'Especialidad', 'Opinión del 1 al 6'], dtype='object')
 data = pd.read_csv("BooksProject.csv")
 data.dropna(subset= ['Libro','Opinión del 1 al 6'], inplace=True)
-dataIndexes = ['Libro','Número de Valoraciones','Media','Cuasidesviación','Mediana', 'Moda']
+dataIndexes = ['Especialidad','Libro','Número de Valoraciones','Media','Cuasidesviación','Mediana', 'Moda']
 
-bookGroupedRates = data.groupby(['Libro'])['Opinión del 1 al 6']
+bookGroupedRates = data.groupby(['Especialidad','Libro'])['Opinión del 1 al 6']
 describeTable = bookGroupedRates.describe().reset_index()
 firstLevelModes = bookGroupedRates.apply(lambda x: x.mode().iloc[0]).reset_index().rename(columns={'Opinión del 1 al 6': 'Moda'})
-describeTable = describeTable.merge(firstLevelModes, on='Libro', how='left')
+describeTable = pd.merge(describeTable, firstLevelModes,  how='left', left_on=['Especialidad','Libro'], right_on = ['Especialidad','Libro'])
 describeTable.rename(columns={'count': 'Número de Valoraciones','mean':'Media', 'std':'Cuasidesviación','50%': 'Mediana'}, inplace=True)
 describeTable.set_index(dataIndexes, inplace = True)
 describeTable.drop(columns = describeTable.columns, inplace = True)
-groupedEspecialtyBooks = data.groupby(['Libro', 'Especialidad']).size()
 #3) book valorations distributions
-opinionsfi = data.groupby(['Libro', 'Opinión del 1 al 6']).size()
+opinionsfi = data.groupby(['Especialidad','Libro', 'Opinión del 1 al 6']).size()
 #print(opinionsfi.index.levels[1].values)
 missingVal = {}
-fiColumns = ['Libro','Opinión del 1 al 6','fi'] 
+fiColumns = ['Especialidad','Libro','Opinión del 1 al 6','fi'] 
 for col in fiColumns:
   missingVal[col] = []
   
@@ -30,22 +29,25 @@ for col in fiColumns:
 #añadiendo una fi (frecuencia absoluta) 0
 
 #E.G: { 'Libro' : [2,3,4], 'Opinión del 1 al 6': [1,1,2], 'fi': [0,0,0]
-for book in opinionsfi.index.levels[0].values:
+
+for book in opinionsfi.index.levels[1].values:
   for val in np.arange(1,7):
-    j = (data[fiColumns[0]] == book) & (data[fiColumns[1]] == val)
+    j = (data[fiColumns[1]] == book) & (data[fiColumns[2]] == val)
     if(not j.any()):
-      missingVal[fiColumns[0]].append(book)
-      missingVal[fiColumns[1]].append(val)
-      missingVal[fiColumns[2]].append(0)
+      missingVal[fiColumns[0]].append(data[data[fiColumns[1]] == book]['Especialidad'].iloc[0])
+      missingVal[fiColumns[1]].append(book)
+      missingVal[fiColumns[2]].append(val)
+      missingVal[fiColumns[3]].append(0)
+
 
 nonPresentVal = pd.DataFrame(missingVal, columns = fiColumns)
-opinionshi = opinionsfi / opinionsfi.groupby(['Libro']).sum()  * 100
+opinionshi = opinionsfi / opinionsfi.groupby(['Especialidad','Libro']).sum()  * 100
 bookRatesDistributions = opinionsfi.to_frame('fi').reset_index()
-bookRatesDistributions = pd.concat([bookRatesDistributions,nonPresentVal]).sort_values(by=['Libro', 'Opinión del 1 al 6'])
-bookRatesDistributions.set_index(['Libro', 'Opinión del 1 al 6'], inplace = True)
+bookRatesDistributions = pd.concat([bookRatesDistributions,nonPresentVal]).sort_values(by=['Especialidad','Libro', 'Opinión del 1 al 6'])
+bookRatesDistributions.set_index(['Especialidad','Libro', 'Opinión del 1 al 6'], inplace = True)
 bookRatesDistributions['hi'] = opinionshi
-bookRatesDistributions['Fi'] = opinionsfi.groupby(['Libro']).cumsum()
-bookRatesDistributions['Hi'] = opinionshi.groupby(['Libro']).cumsum()
+bookRatesDistributions['Fi'] = opinionsfi.groupby(['Especialidad','Libro']).cumsum()
+bookRatesDistributions['Hi'] = opinionshi.groupby(['Especialidad','Libro']).cumsum()
 
 # to this columns fill 0's int the rows that were added because of no records for a book rate
 # llenar estas columnas con 0's en las filas que fueron añadidas debido a que su valoración no poseía registros
@@ -55,8 +57,10 @@ bookRatesDistributions['Hi'].fillna(0, inplace = True)
 
 # join the general information
 finalTable = describeTable.join(bookRatesDistributions, how='inner')
+finalTable.sort_values(by=['Número de Valoraciones','Opinión del 1 al 6'], inplace = True, ascending = [False, True])
 finalTable.set_index(finalTable.index.reorder_levels([*dataIndexes, 'Opinión del 1 al 6']), inplace = True)
 finalTable.to_excel("output.xlsx")  
+
 bins = np.arange(1,7)
 # plt.hist(bookARatings,bins)
 # plt.hist(bookBRatings,bins)
