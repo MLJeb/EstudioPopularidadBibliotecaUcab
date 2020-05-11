@@ -9,7 +9,7 @@ from collections import Counter
 from statsmodels.distributions.empirical_distribution import ECDF
 #data.columns
 #Index(['Libro', 'Titulo del libro', 'Especialidad', 'Opinión del 1 al 6'], dtype='object')
-data = pd.read_csv("BooksProject.csv")
+data = pd.read_csv("bd2.csv")
 data.dropna(subset= ['Especialidad','Libro','Opinión del 1 al 6'], inplace=True)
 dataIndexes = ['Especialidad','Libro','Número de Valoraciones','Media','Cuasidesviación','Mediana', 'Moda']
 nonDispersedData  = data.groupby(['Especialidad','Libro']).filter(lambda x: x['Opinión del 1 al 6'].nunique() <= 1)
@@ -24,6 +24,7 @@ describeTable.drop(columns = describeTable.columns, inplace = True)
 #3) book valorations distributions
 opinionsfi = data.groupby(['Especialidad','Libro', 'Opinión del 1 al 6']).size()
 #print(opinionsfi.index.levels[1].values)
+valRange = np.arange(1,7)
 missingVal = {}
 fiColumns = ['Especialidad','Libro','Opinión del 1 al 6','fi'] 
 for col in fiColumns:
@@ -41,7 +42,7 @@ for especialty in groupedDataDict:
     r = data[(data['Especialidad'] == especialty) & (data['Libro'] == book)]['Opinión del 1 al 6'].values
     if(len(r)> 0):
       groupedDataDict[especialty]['Valoraciones'].append(r) 
-    for val in np.arange(1,7):
+    for val in valRange:
       j = (data[fiColumns[1]] == book) & (data[fiColumns[2]] == val)
       if(not j.any()):
         missingVal[fiColumns[0]].append(especialty)
@@ -71,7 +72,7 @@ finalTable = describeTable.join(bookRatesDistributions, how='inner')
 finalTable.set_index(finalTable.index.reorder_levels([*dataIndexes, 'Opinión del 1 al 6']), inplace = True)
 finalTable.sort_values(by=['Especialidad','Número de Valoraciones','Opinión del 1 al 6'], inplace = True, ascending = [True,False, True])
 
-path = "./output.xlsx"
+path = "./output3.xlsx"
 writer = pd.ExcelWriter(path, engine = 'openpyxl')
 writer.book = openpyxl.Workbook()
 finalTable.to_excel(writer, sheet_name= "tabla de datos dispersos")  
@@ -84,8 +85,8 @@ writer.close()
 bins = np.arange(0, 6 + 1.5) - 0.5
 i = 0
 for especialty in groupedDataDict:
-  fig, axs = plt.subplots(1,2)
   labels = [label for label in list(groupedDataDict[especialty].keys()) if label != 'Valoraciones']
+  fig, axs = plt.subplots(1,3)
   _ = axs[0].hist(groupedDataDict[especialty]['Valoraciones'], bins, label = labels)
   axs[0].set_xticks(bins + 0.5)
   j = 0
@@ -95,6 +96,9 @@ for especialty in groupedDataDict:
     y = ecdf(x)
     axs[1].step(x,y,label = labels[j])
     j+=1
+  axs[2].set(ylim=(0, 7))
+  axs[2].boxplot(groupedDataDict[especialty]['Valoraciones'])
+  axs[2].set_xticklabels(labels)
   axs[0].legend(prop={'size': 10})
   axs[1].legend(prop={'size': 10})
   fig.suptitle(especialty, fontsize=20)
@@ -102,3 +106,16 @@ for especialty in groupedDataDict:
   i+=1
 plt.close(0)
 plt.show()
+"""
+ nBooks = len(labels)
+  if nBooks > 0:
+    fig1, axs1 = plt.subplots(1,nBooks)
+    k = 0
+    for book in labels:
+      axs1[k].pie(finalTable.loc[especialty, book]['hi'].values, labels=valRange, autopct='%1.1f%%',shadow=True, startangle=90)
+      axs1[k].axis('equal')
+      axs1[k].set_title(book)
+      axs1[k].legend(prop={'size': 10})
+      k+=1
+    fig1.suptitle(especialty, fontsize=20)
+"""
