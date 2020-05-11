@@ -86,7 +86,7 @@ i = 0
 for especialty in groupedDataDict:
   fig, axs = plt.subplots(1,2)
   labels = [label for label in list(groupedDataDict[especialty].keys()) if label != 'Valoraciones']
-  _ = axs[0].hist(groupedDataDict[especialty]['Valoraciones'], bins, density = True, label = labels)
+  _ = axs[0].hist(groupedDataDict[especialty]['Valoraciones'], bins, label = labels)
   axs[0].set_xticks(bins + 0.5)
   j = 0
   for arr in groupedDataDict[especialty]['Valoraciones']:
