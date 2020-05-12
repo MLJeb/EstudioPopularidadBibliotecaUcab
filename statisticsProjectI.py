@@ -7,20 +7,34 @@ from openpyxl import load_workbook
 import os.path
 from collections import Counter
 from statsmodels.distributions.empirical_distribution import ECDF
+
+def percentile(n, name = None):
+    def percentile_(x):
+        return x.quantile(n)
+    percentile_.__name__ = 'P({:2.0f})'.format(n*100)  if name == None else name
+    return percentile_
+
+def difPercentiles(m,n, name= None):
+    def percentile_(x):
+        return x.quantile(n) - x.quantile(m)
+    percentile_.__name__ = 'P({:2.0f}) - P({:2.0f})'.format(n*100, m*100) if name == None else name
+    return percentile_
 #data.columns
 #Index(['Libro', 'Titulo del libro', 'Especialidad', 'Opinión del 1 al 6'], dtype='object')
-data = pd.read_csv("bd2.csv")
+data = pd.read_csv("BooksProject.csv")
 data.dropna(subset= ['Especialidad','Libro','Opinión del 1 al 6'], inplace=True)
-dataIndexes = ['Especialidad','Libro','Número de Valoraciones','Media','Cuasidesviación','Mediana', 'Moda']
+dataIndexes = ['Especialidad','Libro','Número de Valoraciones','Media','Cuasidesviación','Curtosis','Ca','Q1', 'Q2', 'Q3','Rango Intercuartil','P(90) - P(10)','Moda']
 nonDispersedData  = data.groupby(['Especialidad','Libro']).filter(lambda x: x['Opinión del 1 al 6'].nunique() <= 1)
 data = data.groupby(['Especialidad','Libro']).filter(lambda x: x['Opinión del 1 al 6'].nunique() > 1)
 bookGroupedRates = data.groupby(['Especialidad','Libro'])['Opinión del 1 al 6']
-describeTable = bookGroupedRates.describe().reset_index()
+describeTable = bookGroupedRates.agg(['count','std', 'mean', percentile(0.25,'Q1'),percentile(0.5,'Q2'), percentile(0.75,'Q3'),difPercentiles(0.25,0.75, 'Rango Intercuartil'), difPercentiles(0.1,0.9)])
+describeTable['Curtosis'] = (describeTable['Rango Intercuartil'] /(2 * describeTable['P(90) - P(10)'])).fillna("∞") 
+describeTable['Ca'] = 3*(describeTable['mean'] - describeTable['Q2'])/describeTable['std']
+describeTable.reset_index()
 firstLevelModes = bookGroupedRates.apply(lambda x: x.mode().iloc[0]).reset_index().rename(columns={'Opinión del 1 al 6': 'Moda'})
 describeTable = pd.merge(describeTable, firstLevelModes,  how='left', left_on=['Especialidad','Libro'], right_on = ['Especialidad','Libro'])
-describeTable.rename(columns={'count': 'Número de Valoraciones','mean':'Media', 'std':'Cuasidesviación','50%': 'Mediana'}, inplace=True)
+describeTable.rename(columns={'count': 'Número de Valoraciones','mean':'Media', 'std':'Cuasidesviación'}, inplace=True)
 describeTable.set_index(dataIndexes, inplace = True)
-describeTable.drop(columns = describeTable.columns, inplace = True)
 #3) book valorations distributions
 opinionsfi = data.groupby(['Especialidad','Libro', 'Opinión del 1 al 6']).size()
 #print(opinionsfi.index.levels[1].values)
@@ -72,7 +86,7 @@ finalTable = describeTable.join(bookRatesDistributions, how='inner')
 finalTable.set_index(finalTable.index.reorder_levels([*dataIndexes, 'Opinión del 1 al 6']), inplace = True)
 finalTable.sort_values(by=['Especialidad','Número de Valoraciones','Opinión del 1 al 6'], inplace = True, ascending = [True,False, True])
 
-path = "./output3.xlsx"
+path = "./output.xlsx"
 writer = pd.ExcelWriter(path, engine = 'openpyxl')
 writer.book = openpyxl.Workbook()
 finalTable.to_excel(writer, sheet_name= "tabla de datos dispersos")  
@@ -94,10 +108,11 @@ for especialty in groupedDataDict:
     ecdf = ECDF(arr)
     x = np.linspace(0, 6)
     y = ecdf(x)
-    axs[1].step(x,y,label = labels[j])
+    axs[1].step(x,y,label = labels[j], alpha = 0.5)
     j+=1
   axs[2].set(ylim=(0, 7))
   axs[2].boxplot(groupedDataDict[especialty]['Valoraciones'])
+  #axs[2].boxplot(groupedDataDict[especialty]['Valoraciones'], whis = [0,100]) min-max as whisper
   axs[2].set_xticklabels(labels)
   axs[0].legend(prop={'size': 10})
   axs[1].legend(prop={'size': 10})
@@ -119,3 +134,4 @@ plt.show()
       k+=1
     fig1.suptitle(especialty, fontsize=20)
 """
+
