@@ -28,10 +28,9 @@ nonDispersedData  = data.groupby(['Especialidad','Libro']).filter(lambda x: x['O
 data = data.groupby(['Especialidad','Libro']).filter(lambda x: x['Opinión del 1 al 6'].nunique() > 1)
 bookGroupedRates = data.groupby(['Especialidad','Libro'])['Opinión del 1 al 6']
 describeTable = bookGroupedRates.agg(['count','std', 'mean', percentile(0.25,'Q1'),percentile(0.5,'Q2'), percentile(0.75,'Q3'),difPercentiles(0.25,0.75, 'Rango Intercuartil'), difPercentiles(0.1,0.9)])
-describeTable['Curtosis'] = (describeTable['Rango Intercuartil'] /(2 * describeTable['P(90) - P(10)'])).fillna("∞") 
+firstLevelModes = bookGroupedRates.agg([('Moda', lambda x: x.mode().iloc[0]), ('Curtosis',lambda x: x.kurtosis())]).reset_index()
 describeTable['Ca'] = 3*(describeTable['mean'] - describeTable['Q2'])/describeTable['std']
 describeTable.reset_index()
-firstLevelModes = bookGroupedRates.apply(lambda x: x.mode().iloc[0]).reset_index().rename(columns={'Opinión del 1 al 6': 'Moda'})
 describeTable = pd.merge(describeTable, firstLevelModes,  how='left', left_on=['Especialidad','Libro'], right_on = ['Especialidad','Libro'])
 describeTable.rename(columns={'count': 'Número de Valoraciones','mean':'Media', 'std':'Cuasidesviación'}, inplace=True)
 describeTable.set_index(dataIndexes, inplace = True)
