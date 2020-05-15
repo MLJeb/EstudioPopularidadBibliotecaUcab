@@ -21,18 +21,17 @@ def difPercentiles(m,n, name= None):
     return percentile_
 #data.columns
 #Index(['Libro', 'Titulo del libro', 'Especialidad', 'Opinión del 1 al 6'], dtype='object')
-data = pd.read_csv("BooksProject.csv")
+data = pd.read_csv("bd2.csv")
 data.dropna(subset= ['Especialidad','Libro','Opinión del 1 al 6'], inplace=True)
-dataIndexes = ['Especialidad','Libro','Número de Valoraciones','Media','Cuasidesviación','Curtosis','Ca','Q1', 'Q2', 'Q3','Rango Intercuartil','P(90) - P(10)','Moda']
+dataIndexes = ['Especialidad','Libro','Nº Valoraciones','Media','Cuasidesviación','Cu','Ca','Q1', 'Q2', 'Q3','Q3-Q1','Moda']
 nonDispersedData  = data.groupby(['Especialidad','Libro']).filter(lambda x: x['Opinión del 1 al 6'].nunique() <= 1)
 data = data.groupby(['Especialidad','Libro']).filter(lambda x: x['Opinión del 1 al 6'].nunique() > 1)
 bookGroupedRates = data.groupby(['Especialidad','Libro'])['Opinión del 1 al 6']
-describeTable = bookGroupedRates.agg(['count','std', 'mean', percentile(0.25,'Q1'),percentile(0.5,'Q2'), percentile(0.75,'Q3'),difPercentiles(0.25,0.75, 'Rango Intercuartil'), difPercentiles(0.1,0.9)])
-firstLevelModes = bookGroupedRates.agg([('Moda', lambda x: x.mode().iloc[0]), ('Curtosis',lambda x: x.kurtosis())]).reset_index()
-describeTable['Ca'] = 3*(describeTable['mean'] - describeTable['Q2'])/describeTable['std']
+describeTable = bookGroupedRates.agg(['count','std', 'mean', percentile(0.25,'Q1'),percentile(0.5,'Q2'), percentile(0.75,'Q3'),difPercentiles(0.25,0.75, 'Q3-Q1')])
+firstLevelModes = bookGroupedRates.agg([('Moda', lambda x: x.mode().iloc[0]), ('Cu',lambda x: x.kurtosis()), ('Ca',lambda x: x.skew(bias = False))]).reset_index()
 describeTable.reset_index()
 describeTable = pd.merge(describeTable, firstLevelModes,  how='left', left_on=['Especialidad','Libro'], right_on = ['Especialidad','Libro'])
-describeTable.rename(columns={'count': 'Número de Valoraciones','mean':'Media', 'std':'Cuasidesviación'}, inplace=True)
+describeTable.rename(columns={'count': 'Nº Valoraciones','mean':'Media', 'std':'Cuasidesviación'}, inplace=True)
 describeTable.set_index(dataIndexes, inplace = True)
 #3) book valorations distributions
 opinionsfi = data.groupby(['Especialidad','Libro', 'Opinión del 1 al 6']).size()
@@ -83,14 +82,14 @@ bookRatesDistributions['Hi'].fillna(0, inplace = True)
 # join the general information
 finalTable = describeTable.join(bookRatesDistributions, how='inner')
 finalTable.set_index(finalTable.index.reorder_levels([*dataIndexes, 'Opinión del 1 al 6']), inplace = True)
-finalTable.sort_values(by=['Especialidad','Número de Valoraciones','Opinión del 1 al 6'], inplace = True, ascending = [True,False, True])
+finalTable.sort_values(by=['Especialidad','Nº Valoraciones','Opinión del 1 al 6'], inplace = True, ascending = [True,False, True])
 
-path = "./output.xlsx"
+path = "./output3.xlsx"
 writer = pd.ExcelWriter(path, engine = 'openpyxl')
 writer.book = openpyxl.Workbook()
 finalTable.to_excel(writer, sheet_name= "tabla de datos dispersos")  
 if(not nonDispersedData.empty):
-  nonDispersedData = nonDispersedData.groupby(['Especialidad','Libro','Opinión del 1 al 6']).size().to_frame('Número de Valoraciones').sort_values(by=['Especialidad', 'Número de Valoraciones'],ascending = [True,False])
+  nonDispersedData = nonDispersedData.groupby(['Especialidad','Libro','Opinión del 1 al 6']).size().to_frame('Nº Valoraciones').sort_values(by=['Especialidad', 'Nº Valoraciones'],ascending = [True,False])
   nonDispersedData.to_excel(writer, sheet_name = "tabla de datos no dispersos") 
 writer.save()
 writer.close()
